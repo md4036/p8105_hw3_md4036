@@ -1,0 +1,235 @@
+---
+title: "p8105_hw3_md4036"
+output: github_document
+editor_options: 
+  chunk_output_type: console
+---
+## Downloading the librarys
+```{r}
+library (tidyverse)
+library(tidyr)
+library(dplyr)
+library(p8105.datasets)
+```
+
+
+## Problem 1 (will be given)
+#### Read in the data
+
+```{r}
+data("instacart")
+
+instacart = 
+  instacart %>% 
+  as_tibble(instacart)
+```
+
+#### Answer questions about the data
+
+This dataset contains `r nrow(instacart)` rows and `r ncol(instacart)` columns, with each row resprenting a single product from an instacart order. Variables include identifiers for user, order, and product; the order in which each product was added to the cart. There are several order-level variables, describing the day and time of the order, and number of days since prior order. Then there are several item-specific variables, describing the product name (e.g. Yogurt, Avocado), department (e.g. dairy and eggs, produce), and aisle (e.g. yogurt, fresh fruits), and whether the item has been ordered by this user in the past. In total, there are `r instacart %>% select(product_id) %>% distinct %>% count` products found in `r instacart %>% select(user_id, order_id) %>% distinct %>% count` orders from `r instacart %>% select(user_id) %>% distinct %>% count` distinct users.
+
+Below is a table summarizing the number of items ordered from aisle. In total, there are 134 aisles, with fresh vegetables and fresh fruits holding the most items ordered by far.
+
+```{r}
+instacart %>% 
+  count(aisle) %>% 
+  arrange(desc(n))
+```
+
+Next is a plot that shows the number of items ordered in each aisle. Here, aisles are ordered by ascending number of items.
+
+```{r}
+instacart %>% 
+  count(aisle) %>% 
+  filter(n > 10000) %>% 
+  mutate(aisle = fct_reorder(aisle, n)) %>% 
+  ggplot(aes(x = aisle, y = n)) + 
+  geom_point() + 
+  labs(title = "Number of items ordered in each aisle") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+```
+
+Our next table shows the three most popular items in aisles `baking ingredients`, `dog food care`, and `packaged vegetables fruits`, and includes the number of times each item is ordered in your table.
+
+```{r}
+instacart %>% 
+  filter(aisle %in% c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>%
+  group_by(aisle) %>% 
+  count(product_name) %>% 
+  mutate(rank = min_rank(desc(n))) %>% 
+  filter(rank < 4) %>% 
+  arrange(desc(n)) %>%
+  knitr::kable()
+```
+
+Finally is a table showing the mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week. This table has been formatted in an untidy manner for human readers. Pink Lady Apples are generally purchased slightly earlier in the day than Coffee Ice Cream, with the exception of day 5.
+
+```{r}
+instacart %>%
+  filter(product_name %in% c("Pink Lady Apples", "Coffee Ice Cream")) %>%
+  group_by(product_name, order_dow) %>%
+  summarize(mean_hour = mean(order_hour_of_day)) %>%
+  spread(key = order_dow, value = mean_hour) %>%
+  knitr::kable(digits = 2)
+```
+
+## Problem 2
+
+Here is the downloaded dataset. 
+```{r}
+Accelerometer_Data = 
+  read_csv(file = "./hw3data/accel_data.csv")%>%
+  janitor:: clean_names() %>%
+  pivot_longer(
+    activity_1:activity_1440,
+    names_to = "minutes",
+    values_to = "activity",
+    names_prefix = "activity_") %>%
+  mutate (PartofWeek = recode (day, "Monday" = "Weekday", "Tuesday" = "Weekday", "Wednesday" = "Weekday", "Thursday" = "Weekday", "Friday" = "Weekday", "Saturday" = "Weekend", "Sunday" = "Weekend"))
+
+print(Accelerometer_Data)
+```
+
+##Data Description of Accelerometer_Data
+The Accelerometer_Data dataset has `r nrow(Accelerometer_Data)` rows and `r ncol(Accelerometer_Data)` columns. This dataset includes variables like week, day_id, day, minutes, activity, and PartofWeek. The PartofWeek variable was created to indicate whether it is a weekday or weekend. This dataset describes the five weeks of data collected on a 63 year-old male with BMI 25, who was admitted to the Advanced Cardiac Care Center of Columbia University Medical Center and diagnosed with congestive heart failure (CHF). In total, there are 50,400 observations and 6 variables. 
+
+## We are now going to create a `total_activity` variable
+```{r}
+total_activity = 
+  Accelerometer_Data %>%
+  mutate(day = factor(day, levels = c("Monday", "Tuesday","Wednesday", "Thursday","Friday","Saturday","Sunday")))%>%
+  group_by(day, week) %>%
+  summarise(total_activity = sum(activity))%>%
+  pivot_wider(
+    names_from = day,
+    values_from = total_activity)
+
+print(total_activity)
+  
+```
+
+## Now we are going to visualize the Accelerometer_Data
+```{r}
+library(ggridges)
+library(ggplot2)
+
+Accelerometer_Data_Plot = 
+  Accelerometer_Data %>%
+  ggplot(aes(x = minutes, y = activity, color = day))+
+  geom_line(alpha = .5) +
+  geom_smooth (se = FALSE, aes(group = day))
+
+print(Accelerometer_Data_Plot)
+```
+
+##Graph Description
+The Accelerometer_Data_Plot shows that activity time throughout the week was quite consistent because the lines on the graph, which represent the days of the week, don't have any major peaks. 
+
+
+##Problem 3
+##Here is the downloaded dataset. 
+
+```{r}
+library(p8105.datasets)
+data("ny_noaa")
+```
+
+## Here is the tidyed data
+
+```{r}
+NOAA_Data_tidy = 
+  ny_noaa %>%
+  janitor::clean_names()%>%
+  separate(date, into = c("year","month","day"))%>%
+  mutate (prcp = as.numeric(prcp),
+          snow = as.numeric (snow),
+          tmax = as.numeric(tmax),
+          tmin = as.numeric(tmin))%>%
+  mutate(year = as.integer (year),
+         month = as.integer(month),
+         day = as.integer (day)) %>%
+  mutate (month = recode (month, "01" = "January", "02" = "February", "03" = "March", "04" = "April", "05" = "May", "06" = "June", "07" = "July", "08" = "August", "09" = "September", "10" = "October", "11" = "November", "12" = "December"))
+
+view(sample_n(NOAA_Data_tidy, 1000))
+```
+
+The NOAA_Data_tidy dataset has `r nrow(NOAA_Data_tidy)` rows and `r ncol(NOAA_Data_tidy)` columns. This data is retrieved from the NOAA National Climatic Data Center. This dataset contains weather data from GHCN-Daily records from over 100,000 stations in 180 countries and territories and the NCEI provides numerous daily variables, including maximum and minimum temperature, total daily precipitation, snowfall, and snow depth. However, about one half of the stations report precipitation only; this is why there are missing data `NA` in snow,snwd, tmax,and tmin variables. Both the record length and period of record vary by station and cover intervals ranging from less than a year to more than 175 years.
+
+Next we will find the mode of snow. 
+```{r}             
+library("DescTools")  
+
+my_mode <- function(x) {                     # Create mode function 
+  unique_x <- unique(x)
+  tabulate_x <- tabulate(match(x, unique_x))
+  unique_x[tabulate_x == max(tabulate_x)]
+}
+my_mode (NOAA_Data_tidy$snow)
+
+print(my_mode (NOAA_Data_tidy$snow))
+```
+count (NOAA_Data_tidy, snow)
+##The most common value of snow. 
+The mode of snowfall is 0mm. 
+
+##Downloading the Patchwork Package
+```{r}
+library(patchwork)
+```
+
+
+## A two-panel plot showing the average max temperature in January and in July in each station across years. Is there any observable/ interpretable structure? Any outliers?. Use a spagetti plot for this. Dont need to include the legend. 
+
+```{r}
+AverageMaxTemp_JanJul_Plot =
+  NOAA_Data_tidy %>%
+  group_by(month, year, id) %>%
+  filter(month %in% c("January", "July")) %>% 
+  summarize (
+    tmax_average = mean(tmax, na.rm = TRUE))%>%
+  ggplot (aes(x = year, y = tmax_average, color = id)) +
+  geom_line(alpha = .5)+
+  facet_grid(.~month)+
+  theme(legend.position = "none")
+
+print(AverageMaxTemp_JanJul_Plot)
+```
+The average max temperature in January and in July in each station across years does not seem to have many outliers. In July, there does seem to have some outliers before the year 1990. The January max temperatures seem to all cluster between -100 and 100 while the July max temperatures seem to all cluster between 200 and 300. 
+
+## A two-panel plot showing (i) tmax vs tmin for the full dataset (use scatterplot). tmax should be on the vertical axis and tmin should be on the horizontal axis. 
+```{r}
+tmax_tmin_plot =
+  NOAA_Data_tidy %>%
+  drop_na(c("tmax","tmin"))%>%
+  arrange(tmax, tmin, year)%>%
+  ggplot(aes(x =tmin, y=tmax, group = year)) +
+  geom_hex()
+
+print(tmax_tmin_plot)
+```
+
+The max temperatures and the min temperatures across the whole dataset seem to have a linear relationship. There seems to be quite a few outliers which are shown by the dots outside of the general distribution of observations. 
+
+## A plot showing the distribution of snowfall values greater than 0 and less than 100 separately by year. Use geom_density_ridges for the plot 
+```{r}
+snowfall_plot =
+  NOAA_Data_tidy %>%
+  group_by(month, year, id) %>%
+  filter( 0 < snow & snow < 100)%>%
+  ggplot(aes(x = snow, y = year, group = year)) +
+  geom_density_ridges (scale = .8) +
+  theme (legend.position = "right") +
+  labs (title = "Distribution of snowfall") 
+
+
+print(snowfall_plot)
+```
+The distribution of snowfall all seem to be quite consistent. The peaks are mostly between 0 and 40 mm of sno. After 80mm, the distributions seem to flatten out.
+
+
+## Now we will combine the two graphs. 
+```{r}
+tmax_tmin_plot + snowfall_plot
+```
+
